@@ -1,0 +1,13 @@
+feature,mean_abs_shap
+customer_return_rate,0.32525244
+previous_returns_same_category,0.2710956
+multiple_sizes_same_product,0.24848801
+average_product_return_rate,0.16493568
+avg_days_to_return,0.1420251
+customer_history_days,0.036511533
+total_previous_orders,0.026080985
+total_previous_returns,0.025357714
+max_sizes_same_product,0.022491284
+cart_value,0.010812261
+days_since_last_order,0.0045693885
+cart_item_count,0.00060292793

@@ -1,0 +1,48 @@
+{
+  "feature_order": [
+    "customer_return_rate",
+    "total_previous_orders",
+    "total_previous_returns",
+    "customer_history_days",
+    "days_since_last_order",
+    "cart_value",
+    "cart_item_count",
+    "multiple_sizes_same_product",
+    "max_sizes_same_product",
+    "average_product_return_rate",
+    "previous_returns_same_category",
+    "avg_days_to_return"
+  ],
+  "risk_level_thresholds": {
+    "low_max": 0.3,
+    "high_min": 0.65
+  },
+  "threshold_justification": "Provisional thresholds [low < 0.30, medium 0.30-0.65, high >= 0.65] confirmed on validation set: Low=735 (61.3%), Med=281 (23.4%), High=184 (15.3%) with High-tier Precision=84.8%, Recall=39.8%.",
+  "confidence_formula_version": "model_confidence_v1",
+  "random_seed": 42,
+  "split_ratio": {
+    "train": 0.7,
+    "validation": 0.15,
+    "test": 0.15
+  },
+  "xgboost_config": {
+    "n_estimators": 150,
+    "max_depth": 4,
+    "learning_rate": 0.08,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "eval_metric": "auc",
+    "early_stopping_rounds": 15,
+    "best_iteration": 17,
+    "best_val_auc": 0.8304565947666195
+  },
+  "training_date": "2026-08-31T08:47:13.015669+00:00",
+  "library_versions": {
+    "xgboost": "3.4.1",
+    "scikit-learn": "1.9.0",
+    "shap": "0.52.0",
+    "joblib": "1.5.3",
+    "pandas": "3.0.5",
+    "numpy": "2.5.2"
+  }
+}

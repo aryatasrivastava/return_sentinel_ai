@@ -430,8 +430,197 @@ def seed_customers_and_orders(db: Session, products: dict[str, Product]) -> None
     )
     db.add(policy_c)
 
+    # ==========================================
+    # CUSTOMER D: Borderline Low / Mixed Signals Profile
+    # 15 previous orders, 5 returns -> 33.3% return rate
+    # Substantial order history with mixed behavioral signals
+    # ==========================================
+    logger.info("Seeding Customer D (Borderline Low / Mixed Signals)...")
+    cust_d = Customer(
+        name="Vikram Malhotra",
+        email="vikram.malhotra@example.com",
+        created_at=now - timedelta(days=180),
+    )
+    db.add(cust_d)
+    db.flush()
+
+    cust_d_cache = CustomerRiskCache(
+        customer_id=cust_d.id,
+        return_rate=Decimal("0.3333"),
+        previous_returns=5,
+        order_count=15,
+        days_since_last_order=14,
+        behavior_flags={
+            "is_serial_returner": False,
+            "size_bracketing_detected": False,
+            "tenure_tier": "Medium",
+        },
+        updated_at=now,
+    )
+    db.add(cust_d_cache)
+
+    # 15 Orders for Customer D (5 returns)
+    for i in range(1, 16):
+        order_date = now - timedelta(days=175 - i * 11)
+        ord_d = Order(
+            customer_id=cust_d.id,
+            order_value=Decimal("3499.00"),
+            status="completed",
+            created_at=order_date,
+        )
+        db.add(ord_d)
+        db.flush()
+
+        item_d = OrderItem(
+            order_id=ord_d.id,
+            product_id=products["SKU-KUR-004"].id,
+            size="L",
+            quantity=1,
+            unit_price=Decimal("3499.00"),
+        )
+        db.add(item_d)
+        db.flush()
+
+        # Returns on orders 3, 6, 9, 12, 14
+        if i in (3, 6, 9, 12, 14):
+            ret_d = Return(
+                order_id=ord_d.id,
+                order_item_id=item_d.id,
+                reason="Slight size variance, exchanged for better fit",
+                condition="unused",
+                created_at=order_date + timedelta(days=14),
+            )
+            db.add(ret_d)
+
+    # ==========================================
+    # CUSTOMER E: High Risk, Strong Signal Profile
+    # 28 previous orders, 24 returns -> 85.7% return rate
+    # Fast return turnaround (1-2 days), wardrobing pattern
+    # ==========================================
+    logger.info("Seeding Customer E (High Risk, Strong Signal)...")
+    cust_e = Customer(
+        name="Sameer Kapoor",
+        email="sameer.kapoor@example.com",
+        created_at=now - timedelta(days=400),
+    )
+    db.add(cust_e)
+    db.flush()
+
+    cust_e_cache = CustomerRiskCache(
+        customer_id=cust_e.id,
+        return_rate=Decimal("0.8571"),
+        previous_returns=24,
+        order_count=28,
+        days_since_last_order=3,
+        behavior_flags={
+            "is_serial_returner": True,
+            "size_bracketing_detected": True,
+            "repeat_wardrobing_suspect": True,
+            "bracketing_frequency": 8,
+        },
+        updated_at=now,
+    )
+    db.add(cust_e_cache)
+
+    # 28 Orders for Customer E (24 returns)
+    for i in range(1, 29):
+        order_date = now - timedelta(days=390 - i * 13)
+        ord_e = Order(
+            customer_id=cust_e.id,
+            order_value=Decimal("12999.00"),
+            status="completed",
+            created_at=order_date,
+        )
+        db.add(ord_e)
+        db.flush()
+
+        item_e = OrderItem(
+            order_id=ord_e.id,
+            product_id=products["SKU-SHR-002"].id,
+            size="XL",
+            quantity=1,
+            unit_price=Decimal("12999.00"),
+        )
+        db.add(item_e)
+        db.flush()
+
+        # 24 returns across 28 orders with rapid turnaround (1-2 days)
+        if i <= 24:
+            ret_e = Return(
+                order_id=ord_e.id,
+                order_item_id=item_e.id,
+                reason="Fit not suitable for event",
+                condition="worn" if i % 2 == 0 else "unused",
+                created_at=order_date + timedelta(days=2),
+            )
+            db.add(ret_e)
+
+    # ==========================================
+    # CUSTOMER F: Clean Repeat Customer Profile
+    # 35 previous orders, 2 returns -> 5.7% return rate
+    # Long tenure (550 days), high trust score
+    # ==========================================
+    logger.info("Seeding Customer F (Clean Repeat Customer)...")
+    cust_f = Customer(
+        name="Meera Sen",
+        email="meera.sen@example.com",
+        created_at=now - timedelta(days=550),
+    )
+    db.add(cust_f)
+    db.flush()
+
+    cust_f_cache = CustomerRiskCache(
+        customer_id=cust_f.id,
+        return_rate=Decimal("0.0571"),
+        previous_returns=2,
+        order_count=35,
+        days_since_last_order=20,
+        behavior_flags={
+            "loyalty_tier": "Platinum",
+            "trust_score": 98,
+            "is_serial_returner": False,
+            "size_bracketing_detected": False,
+        },
+        updated_at=now,
+    )
+    db.add(cust_f_cache)
+
+    # 35 Orders for Customer F (2 returns)
+    for i in range(1, 36):
+        order_date = now - timedelta(days=540 - i * 15)
+        ord_f = Order(
+            customer_id=cust_f.id,
+            order_value=Decimal("5999.00") if i % 3 == 0 else Decimal("2499.00"),
+            status="completed",
+            created_at=order_date,
+        )
+        db.add(ord_f)
+        db.flush()
+
+        prod_key = "SKU-BLZ-008" if i % 3 == 0 else "SKU-CHN-007"
+        item_f = OrderItem(
+            order_id=ord_f.id,
+            product_id=products[prod_key].id,
+            size="M",
+            quantity=1,
+            unit_price=Decimal("5999.00") if i % 3 == 0 else Decimal("2499.00"),
+        )
+        db.add(item_f)
+        db.flush()
+
+        # Only 2 returns (orders 10 and 25) with 24-day normal turnaround
+        if i in (10, 25):
+            ret_f = Return(
+                order_id=ord_f.id,
+                order_item_id=item_f.id,
+                reason="Fabric color slightly different from display",
+                condition="unused",
+                created_at=order_date + timedelta(days=24),
+            )
+            db.add(ret_f)
+
     db.commit()
-    logger.info("Successfully seeded Customers A, B, and C with full transactional traces.")
+    logger.info("Successfully seeded Customers A, B, C, D, E, and F with full transactional traces.")
 
 
 def run_seed() -> None:
