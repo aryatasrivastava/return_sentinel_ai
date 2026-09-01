@@ -42,6 +42,14 @@ class AgentState(TypedDict, total=False):
     risk_level: Optional[str]
     model_confidence: Optional[float]
     top_risk_factors: List[str]
+    top_risk_factors_detailed: List[Dict[str, Any]]
     investigation_round: int
     is_low_confidence: bool
+    recommended_policy: Optional[str]
+    policy_agent_reasoning: Optional[Dict[str, Any]]
+    final_policy: Optional[str]
+    validation_passed: Optional[bool]
+    policy_anomaly: Optional[bool]
+    policy_engine_details: Optional[Dict[str, Any]]
     investigation_log: List[Dict[str, Any]]
+

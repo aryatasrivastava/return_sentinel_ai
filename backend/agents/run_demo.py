@@ -45,6 +45,10 @@ def _print_scenario_results(state: Dict[str, Any]) -> None:
     print(f"  * Top Risk Factors      :")
     for idx, factor in enumerate(state.get("top_risk_factors", []), 1):
         print(f"      {idx}. {factor}")
+    print(f"  * Recommended Policy    : {state.get('recommended_policy')}")
+    print(f"  * Final Validated Policy: {state.get('final_policy')}")
+    print(f"  * Validation Passed     : {state.get('validation_passed')}")
+    print(f"  * Policy Anomaly Flag   : {state.get('policy_anomaly')}")
 
     print("\n--- [AGENT DECISION TRACE / INVESTIGATION LOG] ---")
     log = state.get("investigation_log", [])
@@ -70,29 +74,25 @@ def _print_scenario_results(state: Dict[str, Any]) -> None:
 
 
 def print_summary_table(results: List[Tuple[str, str, Dict[str, Any]]]) -> None:
-    print("\n" + "#" * 98)
-    print("   RETURNSENTINEL AI: 7-SCENARIO CONFIDENCE ROUTER VALIDATION SUMMARY TABLE")
-    print("#" * 98)
-    header = f"{'Scenario':<12} | {'Profile Description':<28} | {'Round 0 (P / Conf)':<20} | {'Final (P / Conf)':<20} | {'Rounds':<6} | {'LowConf':<7} | {'Risk Level'}"
+    print("\n" + "#" * 125)
+    print("   RETURNSENTINEL AI: 7-SCENARIO END-TO-END PIPELINE VALIDATION SUMMARY TABLE")
+    print("#" * 125)
+    header = f"{'Scenario':<12} | {'Profile Description':<24} | {'Final Risk':<10} | {'LowConf':<7} | {'Recommended Policy':<18} | {'Final Policy':<18} | {'Valid':<5} | {'Anomaly'}"
     print(header)
-    print("-" * 98)
+    print("-" * 125)
 
     for sc_id, desc, state in results:
-        init_step = state["investigation_log"][0]
-        init_p = init_step.get("risk_probability", 0.0)
-        init_c = init_step.get("model_confidence", 0.0)
-
-        final_p = state.get("risk_probability", 0.0)
-        final_c = state.get("model_confidence", 0.0)
-        rounds = state.get("investigation_round", 0)
-        low_c = state.get("is_low_confidence", False)
         lvl = state.get("risk_level", "N/A")
+        low_c = state.get("is_low_confidence", False)
+        rec_p = state.get("recommended_policy", "N/A")
+        fin_p = state.get("final_policy", "N/A")
+        val_pass = state.get("validation_passed", False)
+        anom = state.get("policy_anomaly", False)
 
-        r0_str = f"{init_p:.4f} / {init_c:.4f}"
-        final_str = f"{final_p:.4f} / {final_c:.4f}"
-        print(f"{sc_id:<12} | {desc:<28} | {r0_str:<20} | {final_str:<20} | {rounds:<6} | {str(low_c):<7} | {lvl}")
+        print(f"{sc_id:<12} | {desc:<24} | {lvl:<10} | {str(low_c):<7} | {str(rec_p):<18} | {str(fin_p):<18} | {str(val_pass):<5} | {str(anom)}")
 
-    print("=" * 98)
+    print("=" * 125)
+
 
 
 def run_all_scenarios() -> List[Tuple[str, str, Dict[str, Any]]]:

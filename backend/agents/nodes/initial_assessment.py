@@ -50,6 +50,7 @@ def initial_assessment_node(state: AgentState) -> Dict[str, Any]:
     risk_lvl = str(prediction["risk_level"])
     model_conf = float(prediction["confidence"])
     top_factors = list(prediction["top_risk_factors"])
+    top_factors_detailed = list(prediction.get("top_risk_factors_detailed", []))
 
     log_entry: Dict[str, Any] = {
         "step_type": "initial_assessment",
@@ -69,7 +70,9 @@ def initial_assessment_node(state: AgentState) -> Dict[str, Any]:
         "risk_level": risk_lvl,
         "model_confidence": model_conf,
         "top_risk_factors": top_factors,
+        "top_risk_factors_detailed": top_factors_detailed,
         "investigation_round": 0,
         "is_low_confidence": False,
         "investigation_log": current_log,
     }
+
