@@ -1,6 +1,8 @@
+import json
 import logging
 import time
 from decimal import Decimal
+from pathlib import Path
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -17,6 +19,26 @@ from agents.graph import run_risk_assessment
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/assess-order", tags=["Risk Assessment Pipeline"])
+
+
+def _get_model_version() -> str:
+    """Load the installed XGBoost library version from model_config.json."""
+    try:
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        config_path = base_dir / "ml" / "models" / "model_config.json"
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                config_data = json.load(f)
+            xgboost_version = config_data.get("library_versions", {}).get("xgboost")
+            if xgboost_version:
+                return f"xgboost-{xgboost_version}"
+    except Exception as e:
+        logger.warning(f"Failed to load model_version from config: {e}")
+    return "xgboost-unknown"
+
+
+MODEL_VERSION = _get_model_version()
+
 
 
 @router.post("", response_model=AssessOrderResponse, status_code=status.HTTP_200_OK)
@@ -128,7 +150,7 @@ def assess_order(
         risk_prob = float(state.get("risk_probability", 0.0))
         risk_score = Decimal(str(round(risk_prob * 100, 2)))
         confidence = Decimal(str(round(float(state.get("model_confidence", 0.0)), 3)))
-        risk_level_str = str(state.get("risk_level", "low")).lower()
+        risk_level_str = str(state.get("risk_level", "LOW")).upper()
         investigation_round = int(state.get("investigation_round", 0))
         final_policy_str = str(state.get("final_policy", "STANDARD_RETURN"))
 
@@ -138,7 +160,7 @@ def assess_order(
             risk_score=risk_score,
             risk_level=risk_level_str,
             confidence=confidence,
-            model_version="xgboost-v2.4",
+            model_version=MODEL_VERSION,
             investigation_round=investigation_round,
             is_final=True,
         )

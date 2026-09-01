@@ -120,7 +120,8 @@ class TestAssessOrderAPI(unittest.TestCase):
 
             pred = db.query(RiskPrediction).filter(RiskPrediction.order_id == created_order_id).first()
             self.assertIsNotNone(pred)
-            self.assertEqual(pred.risk_level, "low")
+            self.assertEqual(pred.risk_level, "LOW")
+            self.assertEqual(pred.model_version, "xgboost-3.4.1")
             self.assertTrue(pred.is_final)
 
             decision = db.query(PolicyDecision).filter(PolicyDecision.order_id == created_order_id).first()
@@ -163,6 +164,16 @@ class TestAssessOrderAPI(unittest.TestCase):
 
         # Assert database persistence
         with SessionLocal() as db:
+            pred = (
+                db.query(RiskPrediction)
+                .filter(RiskPrediction.order_id == order_id)
+                .order_by(RiskPrediction.id.desc())
+                .first()
+            )
+            self.assertIsNotNone(pred)
+            self.assertEqual(pred.risk_level, "HIGH")
+            self.assertEqual(pred.model_version, "xgboost-3.4.1")
+
             decision = db.query(PolicyDecision).filter(PolicyDecision.order_id == order_id).first()
             self.assertIsNotNone(decision)
             self.assertEqual(decision.policy_type, "STORE_CREDIT")
