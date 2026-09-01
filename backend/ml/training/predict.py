@@ -196,6 +196,7 @@ def predict_return_risk(features: Dict[str, Any]) -> Dict[str, Any]:
     top_indices = np.argsort(np.abs(row_shap))[-3:][::-1]
 
     top_risk_factors: List[str] = []
+    top_risk_factors_detailed: List[Dict[str, Any]] = []
     for idx in top_indices:
         feat_name = expected_order[idx]
         shap_contrib = float(row_shap[idx])
@@ -207,13 +208,20 @@ def predict_return_risk(features: Dict[str, Any]) -> Dict[str, Any]:
             f"{feat_name} ({direction} risk impact: {shap_contrib:+.3f})"
         )
         top_risk_factors.append(phrase)
+        top_risk_factors_detailed.append({
+            "feature": feat_name,
+            "label": phrase,
+            "shap_value": round(shap_contrib, 4),
+        })
 
     return {
         "risk_probability": round(risk_probability, 4),
         "risk_level": risk_level,
         "confidence": round(model_confidence, 4),
         "top_risk_factors": top_risk_factors,
+        "top_risk_factors_detailed": top_risk_factors_detailed,
     }
+
 
 
 if __name__ == "__main__":
