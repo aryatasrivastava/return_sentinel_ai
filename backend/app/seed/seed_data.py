@@ -13,6 +13,13 @@ from app.models.risk_prediction import RiskPrediction
 from app.models.policy_decision import PolicyDecision
 from app.models.customer_risk_cache import CustomerRiskCache
 from app.models.product_risk_cache import ProductRiskCache
+from app.models.policy_config import (
+    PolicyConfig,
+    DEFAULT_LOW_RISK_ALLOWED,
+    DEFAULT_MEDIUM_RISK_ALLOWED,
+    DEFAULT_HIGH_RISK_ALLOWED,
+    DEFAULT_LOW_CONFIDENCE_FALLBACK,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,6 +28,7 @@ logger = logging.getLogger(__name__)
 def clean_database(db: Session) -> None:
     """Clear tables in reverse dependency order for idempotent seeding."""
     logger.info("Cleaning existing seed records...")
+    db.query(PolicyConfig).delete()
     db.query(PolicyDecision).delete()
     db.query(RiskPrediction).delete()
     db.query(Return).delete()
@@ -32,6 +40,7 @@ def clean_database(db: Session) -> None:
     db.query(Customer).delete()
     db.commit()
     logger.info("Cleaned existing records.")
+
 
 
 def seed_products(db: Session) -> dict[str, Product]:
@@ -623,6 +632,22 @@ def seed_customers_and_orders(db: Session, products: dict[str, Product]) -> None
     logger.info("Successfully seeded Customers A, B, C, D, E, and F with full transactional traces.")
 
 
+def seed_policy_config(db: Session) -> PolicyConfig:
+    """Seed default policy configuration row."""
+    logger.info("Seeding default policy configuration...")
+    config = PolicyConfig(
+        id=1,
+        low_risk_allowed=DEFAULT_LOW_RISK_ALLOWED,
+        medium_risk_allowed=DEFAULT_MEDIUM_RISK_ALLOWED,
+        high_risk_allowed=DEFAULT_HIGH_RISK_ALLOWED,
+        low_confidence_fallback=DEFAULT_LOW_CONFIDENCE_FALLBACK,
+    )
+    db.add(config)
+    db.commit()
+    logger.info("Successfully seeded default policy configuration.")
+    return config
+
+
 def run_seed() -> None:
     """Entry point for running database seeding."""
     if engine is None:
@@ -636,6 +661,7 @@ def run_seed() -> None:
     db = SessionLocal()
     try:
         clean_database(db)
+        seed_policy_config(db)
         products = seed_products(db)
         seed_customers_and_orders(db, products)
         logger.info("Deterministic database seeding completed successfully.")

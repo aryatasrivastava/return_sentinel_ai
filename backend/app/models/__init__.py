@@ -7,6 +7,7 @@ from app.models.risk_prediction import RiskPrediction
 from app.models.policy_decision import PolicyDecision
 from app.models.customer_risk_cache import CustomerRiskCache
 from app.models.product_risk_cache import ProductRiskCache
+from app.models.policy_config import PolicyConfig
 
 __all__ = [
     "Customer",
@@ -18,4 +19,6 @@ __all__ = [
     "PolicyDecision",
     "CustomerRiskCache",
     "ProductRiskCache",
+    "PolicyConfig",
 ]
+

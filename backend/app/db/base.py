@@ -10,3 +10,5 @@ from app.models.risk_prediction import RiskPrediction  # noqa: F401
 from app.models.policy_decision import PolicyDecision  # noqa: F401
 from app.models.customer_risk_cache import CustomerRiskCache  # noqa: F401
 from app.models.product_risk_cache import ProductRiskCache  # noqa: F401
+from app.models.policy_config import PolicyConfig  # noqa: F401
+
