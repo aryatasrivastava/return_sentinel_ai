@@ -20,6 +20,7 @@ class Order(Base):
     returns = relationship("Return", back_populates="order", cascade="all, delete-orphan")
     risk_predictions = relationship("RiskPrediction", back_populates="order", cascade="all, delete-orphan")
     policy_decision = relationship("PolicyDecision", back_populates="order", uselist=False, cascade="all, delete-orphan")
+    agent_trace = relationship("AgentTrace", back_populates="order", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Order id={self.id} customer_id={self.customer_id} value={self.order_value} status='{self.status}'>"

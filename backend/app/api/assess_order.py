@@ -13,6 +13,7 @@ from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.risk_prediction import RiskPrediction
 from app.models.policy_decision import PolicyDecision
+from app.models.agent_trace import AgentTrace
 from app.schemas.assess_order import AssessOrderRequest, AssessOrderResponse
 from agents.graph import run_risk_assessment
 from audit.audit_generator import generate_and_persist_audit
@@ -185,6 +186,25 @@ def assess_order(
                 audit_generated_at=None,
             )
             db.add(policy_decision)
+
+        # Add or update AgentTrace record
+        trace_payload = {
+            "investigation_log": list(state.get("investigation_log", [])),
+            "policy_agent_reasoning": state.get("policy_agent_reasoning") or {},
+            "policy_engine_details": state.get("policy_engine_details") or {},
+            "top_risk_factors": list(state.get("top_risk_factors", [])),
+        }
+        existing_trace = (
+            db.query(AgentTrace).filter(AgentTrace.order_id == order_id).first()
+        )
+        if existing_trace:
+            existing_trace.trace_data = trace_payload
+        else:
+            agent_trace = AgentTrace(
+                order_id=order_id,
+                trace_data=trace_payload,
+            )
+            db.add(agent_trace)
 
         db.commit()
     except Exception as e:

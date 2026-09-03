@@ -6,6 +6,8 @@ from app.db.session import engine, SessionLocal
 from app.db.base import Base
 from app.api.policy_config import router as policy_config_router
 from app.api.assess_order import router as assess_order_router
+from app.api.orders import router as orders_router
+from app.api.dashboard import router as dashboard_router
 from app.models.policy_config import (
     PolicyConfig,
     DEFAULT_LOW_RISK_ALLOWED,
@@ -58,6 +60,8 @@ app = FastAPI(
 
 app.include_router(policy_config_router, prefix="/api")
 app.include_router(assess_order_router, prefix="/api")
+app.include_router(orders_router, prefix="/api")
+app.include_router(dashboard_router, prefix="/api")
 
 
 
