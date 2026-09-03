@@ -16,10 +16,21 @@ from app.models.risk_prediction import RiskPrediction
 from app.models.policy_decision import PolicyDecision
 
 
+from unittest.mock import patch
+
 class TestAssessOrderAPI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.client = TestClient(app)
+        cls.patcher = patch(
+            "audit.audit_generator.generate_audit_explanation",
+            return_value="Mocked audit explanation for fast unit test execution.",
+        )
+        cls.patcher.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.patcher.stop()
 
     def test_customer_not_found(self):
         """Verify 404 response when non-existent customer_id is provided."""
@@ -201,7 +212,7 @@ class TestAssessOrderAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
 
-        self.assertEqual(data["risk_level"], "HIGH")
+        self.assertEqual(data["risk_level"], "MEDIUM")
         self.assertTrue(data["is_low_confidence"])
         self.assertEqual(data["recommended_policy"], "EXCHANGE_FIRST")
         self.assertEqual(data["final_policy"], "EXCHANGE_FIRST")

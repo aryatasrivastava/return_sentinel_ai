@@ -4,7 +4,7 @@ import time
 from decimal import Decimal
 from pathlib import Path
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.customer import Customer
@@ -15,6 +15,7 @@ from app.models.risk_prediction import RiskPrediction
 from app.models.policy_decision import PolicyDecision
 from app.schemas.assess_order import AssessOrderRequest, AssessOrderResponse
 from agents.graph import run_risk_assessment
+from audit.audit_generator import generate_and_persist_audit
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ MODEL_VERSION = _get_model_version()
 @router.post("", response_model=AssessOrderResponse, status_code=status.HTTP_200_OK)
 def assess_order(
     request: AssessOrderRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     """Execute the end-to-end ReturnSentinel AI assessment pipeline for an order/cart session.
@@ -52,7 +54,8 @@ def assess_order(
     2. Resolves or automatically generates the Order and OrderItem records.
     3. Runs the LangGraph pipeline (Initial Assessment -> Confidence Router -> Policy Agent -> Policy Engine).
     4. Persists the final risk prediction and policy decision in a database transaction.
-    5. Returns the structured assessment and policy decision with measured latency.
+    5. Dispatches an asynchronous background task to generate the LLM audit explanation.
+    6. Returns the structured assessment and policy decision with measured latency.
     """
     # 1. Validate customer existence
     customer = db.query(Customer).filter(Customer.id == request.customer_id).first()
@@ -203,7 +206,25 @@ def assess_order(
         f"is_low_confidence={state.get('is_low_confidence')}"
     )
 
-    # 7. Return flat response
+    # 7. Schedule asynchronous LLM audit generation background task (never blocks response)
+    decision_data = {
+        "order_id": order_id,
+        "risk_probability": round(float(state.get("risk_probability", 0.0)), 4),
+        "risk_level": str(state.get("risk_level", "LOW")),
+        "model_confidence": round(float(state.get("model_confidence", 0.0)), 4),
+        "is_low_confidence": bool(state.get("is_low_confidence", False)),
+        "investigation_round": int(state.get("investigation_round", 0)),
+        "recommended_policy": str(state.get("recommended_policy", "STANDARD_RETURN")),
+        "final_policy": str(state.get("final_policy", "STANDARD_RETURN")),
+        "validation_passed": bool(state.get("validation_passed", True)),
+        "policy_anomaly": bool(state.get("policy_anomaly", False)),
+        "top_risk_factors": list(state.get("top_risk_factors", [])),
+        "policy_agent_reasoning": state.get("policy_agent_reasoning"),
+        "policy_engine_details": state.get("policy_engine_details"),
+    }
+    background_tasks.add_task(generate_and_persist_audit, order_id=order_id, decision_data=decision_data)
+
+    # 8. Return flat response
     return AssessOrderResponse(
         order_id=order_id,
         risk_probability=round(float(state.get("risk_probability", 0.0)), 4),
