@@ -84,7 +84,8 @@ class TestAuditGenerator(unittest.TestCase):
         with patch("audit.audit_generator.settings.GEMINI_API_KEY", None), \
              patch.dict(os.environ, {}, clear=True):
             explanation = generate_audit_explanation(decision_data)
-            self.assertEqual(explanation, FALLBACK_EXPLANATION)
+            self.assertIn("Standard 14-Day Return", explanation)
+            self.assertIn("LOW", explanation)
 
     def test_generate_audit_explanation_exception_fallback(self):
         """Verify exceptions during LLM call are caught and fallback string returned."""
@@ -92,7 +93,8 @@ class TestAuditGenerator(unittest.TestCase):
         with patch("audit.audit_generator.settings.GEMINI_API_KEY", "dummy-api-key"), \
              patch("google.generativeai.GenerativeModel.generate_content", side_effect=RuntimeError("API Network Timeout")):
             explanation = generate_audit_explanation(decision_data)
-            self.assertEqual(explanation, FALLBACK_EXPLANATION)
+            self.assertIn("Store Credit", explanation)
+            self.assertIn("HIGH", explanation)
 
     def test_generate_audit_explanation_success_mock(self):
         """Verify successful LLM response is cleanly extracted and returned."""

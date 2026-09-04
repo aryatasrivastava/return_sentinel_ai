@@ -8,6 +8,7 @@ from app.api.policy_config import router as policy_config_router
 from app.api.assess_order import router as assess_order_router
 from app.api.orders import router as orders_router
 from app.api.dashboard import router as dashboard_router
+from app.api.products import router as products_router
 from app.models.policy_config import (
     PolicyConfig,
     DEFAULT_LOW_RISK_ALLOWED,
@@ -53,15 +54,35 @@ async def lifespan(app: FastAPI):
     # Shutdown logic (if any)
 
 
+import os
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     lifespan=lifespan,
+)
+
+# CORS Configuration for frontend dev and production
+frontend_origin = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
+origins = list(set([
+    frontend_origin,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]))
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 app.include_router(policy_config_router, prefix="/api")
 app.include_router(assess_order_router, prefix="/api")
 app.include_router(orders_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(products_router, prefix="/api")
 
 
 

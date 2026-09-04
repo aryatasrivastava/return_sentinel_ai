@@ -89,6 +89,41 @@ Your role is strictly to explain the already-final decision data provided below 
     return prompt.strip()
 
 
+def generate_deterministic_explanation(decision_data: dict) -> str:
+    """Generate a high-quality deterministic audit explanation when LLM API quota or network is unavailable."""
+    risk_level = decision_data.get("risk_level", "LOW")
+    risk_prob = decision_data.get("risk_probability", 0.0)
+    risk_pct = f"{risk_prob * 100:.1f}%" if risk_prob <= 1.0 else f"{risk_prob:.1f}%"
+    confidence = decision_data.get("model_confidence", 0.0)
+    conf_pct = f"{confidence * 100:.1f}%" if confidence <= 1.0 else f"{confidence:.1f}%"
+    is_low_conf = decision_data.get("is_low_confidence", False)
+    final_policy = decision_data.get("final_policy", "STANDARD_RETURN")
+    top_factors = decision_data.get("top_risk_factors") or []
+
+    factors_summary = ", ".join(top_factors[:2]) if top_factors else "standard customer and cart checkout telemetry"
+
+    policy_names = {
+        "STANDARD_RETURN": "Standard 14-Day Return window with full refund",
+        "EXCHANGE_FIRST": "Exchange First to prioritize size/item replacement over cash refund",
+        "STORE_CREDIT": "Store Credit only to mitigate return abuse while preserving customer retention",
+        "RESTOCKING_FEE": "Restocking Fee deduction to offset reverse logistics and liquidation costs",
+    }
+    policy_desc = policy_names.get(final_policy, final_policy)
+
+    if is_low_conf:
+        return (
+            f"The order was evaluated with an estimated {risk_level} risk score ({risk_pct}) influenced by {factors_summary}. "
+            f"Because model certainty ({conf_pct}) fell below the autonomous decision threshold, the system safely applied {policy_desc} "
+            f"as the merchant's configured fallback policy."
+        )
+    else:
+        return (
+            f"The order was classified as {risk_level} return abuse risk ({risk_pct} probability) with {conf_pct} model confidence, "
+            f"driven primarily by {factors_summary}. Based on category risk scoring and active merchant policy constraints, "
+            f"the system enforced {policy_desc}."
+        )
+
+
 def generate_audit_explanation(decision_data: dict) -> str:
     """Invoke the Google Gemini LLM to generate a concise, human-readable audit explanation.
 
@@ -96,12 +131,12 @@ def generate_audit_explanation(decision_data: dict) -> str:
         decision_data: Dictionary containing structured decision facts.
 
     Returns:
-        Generated 2-4 sentence explanation, or a graceful fallback string upon failure.
+        Generated 2-4 sentence explanation, or a graceful structured fallback upon API limit/failure.
     """
     api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
     if not api_key:
-        logger.warning("GEMINI_API_KEY is not configured. Returning fallback audit explanation.")
-        return FALLBACK_EXPLANATION
+        logger.warning("GEMINI_API_KEY is not configured. Returning deterministic audit explanation.")
+        return generate_deterministic_explanation(decision_data)
 
     try:
         genai.configure(api_key=api_key)
@@ -115,17 +150,17 @@ def generate_audit_explanation(decision_data: dict) -> str:
         )
         prompt = build_audit_prompt(decision_data)
         response = model.generate_content(prompt)
-        
+
         if response and response.text:
             explanation = response.text.strip()
             return explanation
         else:
             logger.warning("Gemini model returned empty response or text.")
-            return FALLBACK_EXPLANATION
+            return generate_deterministic_explanation(decision_data)
 
     except Exception as e:
-        logger.error(f"Error during Gemini audit explanation generation: {e}", exc_info=True)
-        return FALLBACK_EXPLANATION
+        logger.warning(f"Gemini API call failed or quota exceeded ({e}). Generating high-quality deterministic audit explanation.")
+        return generate_deterministic_explanation(decision_data)
 
 
 def generate_and_persist_audit(
@@ -172,8 +207,19 @@ def generate_and_persist_audit(
             decision_data["risk_probability"] = float(pred.risk_score) / 100.0
         if "model_confidence" not in decision_data and pred:
             decision_data["model_confidence"] = float(pred.confidence)
+        if "is_low_confidence" not in decision_data and pred:
+            decision_data["is_low_confidence"] = bool(pred.confidence is not None and float(pred.confidence) < 0.5)
         if "final_policy" not in decision_data and policy_decision:
             decision_data["final_policy"] = policy_decision.policy_type
+
+        # Enrich top_risk_factors from AgentTrace if present
+        if "top_risk_factors" not in decision_data:
+            from app.models.agent_trace import AgentTrace
+            trace = db.query(AgentTrace).filter(AgentTrace.order_id == order_id).first()
+            if trace and isinstance(trace.trace_data, dict):
+                factors = trace.trace_data.get("top_risk_factors")
+                if factors:
+                    decision_data["top_risk_factors"] = factors
 
         # Generate audit explanation
         explanation = generate_audit_explanation(decision_data)
