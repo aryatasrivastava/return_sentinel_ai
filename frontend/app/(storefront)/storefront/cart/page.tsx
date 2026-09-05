@@ -103,18 +103,18 @@ export default function StorefrontCartPage() {
                       <button
                         type="button"
                         onClick={() => updateQuantity(item.product_id, item.size, item.quantity - 1)}
-                        className="px-2.5 py-1 text-stone-600 hover:bg-stone-200 text-xs font-bold transition-colors"
+                        className="px-2.5 py-1 text-stone-600 hover:bg-stone-200 active:bg-stone-300 text-xs font-bold transition-colors cursor-pointer"
                         aria-label="Decrease quantity"
                       >
-                        -
+                        −
                       </button>
-                      <span className="px-3 py-1 text-xs font-mono font-bold text-stone-900">
+                      <span className="px-3 py-1 text-xs font-mono font-bold text-stone-900 tabular-nums">
                         {item.quantity}
                       </span>
                       <button
                         type="button"
                         onClick={() => updateQuantity(item.product_id, item.size, item.quantity + 1)}
-                        className="px-2.5 py-1 text-stone-600 hover:bg-stone-200 text-xs font-bold transition-colors"
+                        className="px-2.5 py-1 text-stone-600 hover:bg-stone-200 active:bg-stone-300 text-xs font-bold transition-colors cursor-pointer"
                         aria-label="Increase quantity"
                       >
                         +

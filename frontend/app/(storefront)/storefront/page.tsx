@@ -6,7 +6,13 @@ import { useStorefront } from "@/lib/storefront/StorefrontContext";
 import { getStorefrontProducts, StorefrontProduct } from "@/lib/api/storefront";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ShoppingBagIcon, CheckCircleIcon, FilterIcon } from "@/components/ui/Icons";
+import {
+  ShoppingBagIcon,
+  CheckCircleIcon,
+  FilterIcon,
+  XIcon,
+  ArrowRightIcon,
+} from "@/components/ui/Icons";
 
 const AVAILABLE_SIZES = ["S", "M", "L", "XL", "XXL"];
 
@@ -25,15 +31,15 @@ function getCategoryColor(category?: string | null): { bg: string; text: string;
 }
 
 export default function StorefrontProductListingPage() {
-  const { addToCart, cartCount } = useStorefront();
+  const { cart, addToCart, updateQuantity, getItemQuantity, cartCount } = useStorefront();
   const [products, setProducts] = useState<StorefrontProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Selected size per product card state: { [productId]: size }
   const [selectedSizes, setSelectedSizes] = useState<Record<number, string>>({});
-  // Added notification feedback state per product: { [productId]: boolean }
-  const [recentlyAdded, setRecentlyAdded] = useState<Record<number, boolean>>({});
+  // Prominent Floating Toast State
+  const [toastItem, setToastItem] = useState<{ name: string; size: string; price: number } | null>(null);
 
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
 
@@ -67,12 +73,19 @@ export default function StorefrontProductListingPage() {
     const size = selectedSizes[product.id] || "M";
     addToCart(product, size, 1);
 
-    // Show temporary "Added!" indicator
-    setRecentlyAdded((prev) => ({ ...prev, [product.id]: true }));
-    setTimeout(() => {
-      setRecentlyAdded((prev) => ({ ...prev, [product.id]: false }));
-    }, 1500);
+    // Show prominent floating toast
+    setToastItem({ name: product.name, size, price: product.price });
   };
+
+  // Auto-dismiss toast after 4 seconds
+  useEffect(() => {
+    if (toastItem) {
+      const timer = setTimeout(() => {
+        setToastItem(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastItem]);
 
   const categories = ["ALL", ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))];
 
@@ -150,7 +163,7 @@ export default function StorefrontProductListingPage() {
           <button
             key={cat || "unknown"}
             onClick={() => setSelectedCategory(cat || "ALL")}
-            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all shrink-0 ${
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all shrink-0 cursor-pointer ${
               selectedCategory === cat
                 ? "bg-stone-900 text-white shadow-sm"
                 : "bg-stone-100 text-stone-600 hover:bg-stone-200 hover:text-stone-900"
@@ -166,7 +179,8 @@ export default function StorefrontProductListingPage() {
         {filteredProducts.map((product) => {
           const theme = getCategoryColor(product.category);
           const currentSize = selectedSizes[product.id] || "M";
-          const isAdded = recentlyAdded[product.id];
+          const currentQty = getItemQuantity(product.id, currentSize);
+          const productCartItems = cart.filter((item) => item.product_id === product.id);
 
           return (
             <div
@@ -212,8 +226,8 @@ export default function StorefrontProductListingPage() {
                   </span>
                 </div>
 
-                {/* Size Selection & Add to Cart */}
-                <div className="space-y-2 pt-2 border-t border-stone-100">
+                {/* Size Selection & Add to Cart / Stepper */}
+                <div className="space-y-2.5 pt-2 border-t border-stone-100">
                   <div className="flex items-center justify-between gap-2">
                     <label
                       htmlFor={`size-${product.id}`}
@@ -227,41 +241,128 @@ export default function StorefrontProductListingPage() {
                       onChange={(e) => handleSizeChange(product.id, e.target.value)}
                       className="bg-stone-50 border border-stone-300 text-xs rounded px-2.5 py-1 text-stone-900 font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
                     >
-                      {AVAILABLE_SIZES.map((sz) => (
-                        <option key={sz} value={sz}>
-                          Size {sz}
-                        </option>
-                      ))}
+                      {AVAILABLE_SIZES.map((sz) => {
+                        const szQty = getItemQuantity(product.id, sz);
+                        return (
+                          <option key={sz} value={sz}>
+                            Size {sz} {szQty > 0 ? `(${szQty} in bag)` : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleAddToCart(product)}
-                    className={`w-full py-2.5 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
-                      isAdded
-                        ? "bg-emerald-600 text-white shadow-sm"
-                        : "bg-stone-900 hover:bg-stone-800 text-white shadow-sm"
-                    }`}
-                  >
-                    {isAdded ? (
-                      <>
-                        <CheckCircleIcon size={14} />
-                        <span>Added to Bag!</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingBagIcon size={14} />
-                        <span>Add Size {currentSize} to Bag</span>
-                      </>
-                    )}
-                  </button>
+                  {/* Multi-size indicator for this product if already in bag */}
+                  {productCartItems.length > 0 && (
+                    <div className="flex items-center flex-wrap gap-1.5 text-[11px] text-amber-900 bg-amber-50/80 px-2.5 py-1.5 rounded-lg border border-amber-200/70 font-mono">
+                      <span className="font-sans font-semibold text-amber-950 text-[10px] uppercase tracking-wider">
+                        In Bag:
+                      </span>
+                      {productCartItems.map((item) => (
+                        <span
+                          key={item.size}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            item.size === currentSize
+                              ? "bg-amber-600 text-white shadow-xs ring-1 ring-amber-700"
+                              : "bg-amber-100 text-amber-900"
+                          }`}
+                        >
+                          Size {item.size} × {item.quantity}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Quantity Stepper (if selected size is already in cart) OR Add to Bag Button */}
+                  {currentQty > 0 ? (
+                    <div className="w-full py-1.5 px-2 rounded-lg bg-stone-900 text-white flex items-center justify-between shadow-sm border border-stone-800">
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(product.id, currentSize, currentQty - 1)}
+                        className="w-8 h-8 rounded-md bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-200 hover:text-white flex items-center justify-center font-bold text-base transition-all cursor-pointer border border-stone-700"
+                        aria-label={`Decrease size ${currentSize} quantity`}
+                        title={`Decrease size ${currentSize} quantity`}
+                      >
+                        −
+                      </button>
+
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-stone-300 font-medium">Size {currentSize}:</span>
+                        <span className="font-mono text-xs font-bold text-amber-400 bg-stone-800 px-2 py-0.5 rounded border border-amber-500/30 tabular-nums">
+                          {currentQty} in Bag
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(product.id, currentSize, currentQty + 1)}
+                        className="w-8 h-8 rounded-md bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-200 hover:text-white flex items-center justify-center font-bold text-base transition-all cursor-pointer border border-stone-700"
+                        aria-label={`Increase size ${currentSize} quantity`}
+                        title={`Increase size ${currentSize} quantity`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleAddToCart(product)}
+                      className="w-full py-2.5 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all bg-stone-900 hover:bg-stone-800 active:scale-[0.99] text-white shadow-sm cursor-pointer"
+                    >
+                      <ShoppingBagIcon size={14} />
+                      <span>Add Size {currentSize} to Bag</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Prominent Floating "Added to Bag" Notification Toast */}
+      {toastItem && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-md w-full animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="bg-stone-900 text-white p-4 rounded-xl shadow-2xl border border-stone-700 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                <CheckCircleIcon size={18} />
+              </div>
+              <div className="min-w-0 space-y-0.5">
+                <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider block">
+                  Added to Your Bag!
+                </span>
+                <p className="text-xs text-stone-200 truncate font-serif font-semibold">
+                  {toastItem.name}
+                </p>
+                <div className="flex items-center gap-2 text-[11px] text-stone-400 font-mono">
+                  <span>Size: {toastItem.size}</span>
+                  <span>•</span>
+                  <span>₹{toastItem.price.toLocaleString("en-IN")}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href="/storefront/cart"
+                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs uppercase tracking-wider transition-colors flex items-center gap-1 shadow-sm"
+              >
+                <span>View Bag</span>
+                <ArrowRightIcon size={12} />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setToastItem(null)}
+                className="p-1 text-stone-400 hover:text-white transition-colors"
+                title="Dismiss"
+              >
+                <XIcon size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

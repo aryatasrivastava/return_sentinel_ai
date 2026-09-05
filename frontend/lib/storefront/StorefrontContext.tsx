@@ -28,6 +28,7 @@ interface StorefrontContextType {
   clearCart: () => void;
   cartTotal: number;
   cartCount: number;
+  getItemQuantity: (product_id: number, size: string) => number;
   isLoadingCustomers: boolean;
 }
 
@@ -125,6 +126,16 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
 
+  const getItemQuantity = useCallback(
+    (product_id: number, size: string) => {
+      const item = cart.find(
+        (i) => i.product_id === product_id && i.size === size
+      );
+      return item ? item.quantity : 0;
+    },
+    [cart]
+  );
+
   return (
     <StorefrontContext.Provider
       value={{
@@ -138,6 +149,7 @@ export function StorefrontProvider({ children }: { children: React.ReactNode }) 
         clearCart,
         cartTotal,
         cartCount,
+        getItemQuantity,
         isLoadingCustomers,
       }}
     >

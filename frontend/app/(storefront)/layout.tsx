@@ -80,12 +80,20 @@ function StorefrontNavbar() {
 
           <Link
             href="/storefront/cart"
-            className="relative flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold uppercase tracking-wider text-stone-700 hover:text-stone-950 bg-stone-50 border border-stone-200 transition-colors"
+            id="storefront-bag-link"
+            className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold uppercase tracking-wider transition-colors border ${
+              pathname === "/storefront/cart"
+                ? "text-stone-950 bg-stone-100 border-stone-300 font-bold"
+                : "text-stone-700 hover:text-stone-950 bg-stone-50 border-stone-200"
+            }`}
           >
             <ShoppingBagIcon size={16} />
             <span>Bag</span>
             {cartCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-600 text-white font-mono text-[11px] font-bold">
+              <span
+                id="storefront-cart-badge"
+                className="ml-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-600 text-white font-mono text-[11px] font-bold leading-none shadow-xs transition-transform transform scale-100"
+              >
                 {cartCount}
               </span>
             )}
