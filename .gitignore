@@ -42,3 +42,10 @@ Thumbs.db
 # IDE & Editor
 .vscode/
 .idea/
+
+# AI coding assistant / agent instructions
+AGENTS.md
+CLAUDE.md
+
+# Internal development prompts
+prommpt.md
